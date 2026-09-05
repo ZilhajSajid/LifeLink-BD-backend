@@ -1,0 +1,24 @@
+model Donor {
+  id               String         @id @default(uuid())
+  bloodGroup       BloodGroupType
+  dateOfBirth      DateTime
+  gender           Gender
+  address          String?
+  city             String?
+  isAvailable      Boolean        @default(true)
+  lastDonationDate DateTime?
+  totalDonations   Int            @default(0)
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  donationAssignment DonationAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bloodGroup])
+  @@index([isAvailable])
+  @@index([city])
+  @@map("donors")
+}

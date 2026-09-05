@@ -1,0 +1,17 @@
+model RequesterProfile {
+  id               String        @id @default(uuid())
+  type             RequesterType
+  organizationName String?
+  address          String?
+  city             String?
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  bloodRequests BloodRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("requester_profile")
+}

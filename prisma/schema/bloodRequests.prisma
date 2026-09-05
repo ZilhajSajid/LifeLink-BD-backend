@@ -1,0 +1,35 @@
+model BloodRequest {
+  id              String              @id @default(uuid())
+  bloodGroup      BloodGroupType
+  unitsRequired   Int
+  unitsFulfilled  Int                 @default(0)
+  urgency         Urgency             @default(NORMAL)
+  hospitalName    String?
+  hospitalAddress String?
+  city            String?
+  requiredDate    DateTime
+  reason          String?
+  status          BloodRequestsStatus @default(PENDING)
+  verifiedAt      DateTime?
+
+  requesterId String
+  requester   RequesterProfile @relation(fields: [requesterId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  donationAssignments DonationAssignment[]
+
+  payment Payment?
+
+  verifiedBy String?
+  verifier   User?   @relation("VerifiedBy", fields: [verifiedBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requesterId])
+  @@index([bloodGroup])
+  @@index([status])
+  @@index([urgency])
+  @@index([city])
+  @@index([createdAt])
+  @@map("blood_requests")
+}
