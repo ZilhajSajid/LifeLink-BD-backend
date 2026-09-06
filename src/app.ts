@@ -5,6 +5,7 @@ import config from "./app/config";
 import cookieParser from "cookie-parser";
 import { notFound } from "./app/middlewares/notFound";
 import { globalErrorHandler } from "./app/middlewares/globalErrorHandler";
+import { AuthRoutes } from "./app/modules/auth/auth.route";
 
 const app: Application = express();
 
@@ -16,6 +17,8 @@ app.use(express.urlencoded({ extended: true }));
 // Middleware to parse JSON bodies
 app.use(express.json());
 app.use(cookieParser());
+
+app.use("/api/v1/auth", AuthRoutes);
 
 // basic route
 app.get("/", async (req: Request, res: Response) => {
