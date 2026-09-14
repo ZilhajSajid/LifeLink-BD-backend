@@ -1,14 +1,17 @@
 model User {
-  id                 String     @id @default(uuid())
+  id                 String       @id @default(uuid())
   name               String
-  email              String     @unique
+  email              String       @unique
   password           String?
   googleId           String?
   role               Role
+  authProvider       AuthProvider @default(CREDENTIAL)
   phone              String?
-  status             UserStatus @default(ACTIVE)
-  emailVerified      Boolean    @default(false)
-  needPasswordChange Boolean    @default(false)
+  status             UserStatus   @default(ACTIVE)
+  emailVerified      Boolean      @default(false)
+  needPasswordChange Boolean      @default(false)
+  imageUrl           String       @default("")
+  imagePublicId      String       @default("")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from "express";
+import express, { type Application, type Request, type Response } from "express";
 import httpStatus from "http-status";
 import cors from "cors";
 import config from "./app/config";
@@ -22,9 +22,9 @@ app.use("/api/v1/auth", AuthRoutes);
 
 // basic route
 app.get("/", async (req: Request, res: Response) => {
-  res
-    .status(httpStatus.OK)
-    .json({ success: true, message: "Welcome to LifeLink BD system backend" });
+	res
+		.status(httpStatus.OK)
+		.json({ success: true, message: "Welcome to LifeLink BD system backend" });
 });
 
 app.use(globalErrorHandler);
