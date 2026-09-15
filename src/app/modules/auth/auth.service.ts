@@ -4,7 +4,6 @@ import type {
   IGoogleLoginPayload,
   ILoginUserPayload,
   IRegisterUserToDbPayload,
-  IRequestUser,
 } from "./auth.interface";
 import httpStatus from "http-status";
 import bcrypt from "bcrypt";
@@ -102,6 +101,13 @@ const loginUserToDb = async (payload: ILoginUserPayload) => {
     throw new AppError(httpStatus.FORBIDDEN, "User is deleted");
   }
 
+  if (user.password === null && user.googleId !== null) {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "User already has an account registered with google",
+    );
+  }
+
   const isPasswordMatched = await bcrypt.compare(
     password,
     user.password as string,
@@ -134,26 +140,6 @@ const loginUserToDb = async (payload: ILoginUserPayload) => {
     accessToken,
     refreshToken,
   };
-};
-
-const getMeFromDb = async (user: IRequestUser) => {
-  const isUserExists = await prisma.user.findUnique({
-    where: {
-      id: user.userId,
-    },
-    include: {
-      requester: true,
-    },
-    omit: {
-      password: true,
-    },
-  });
-
-  if (!isUserExists) {
-    throw new Error("User not found");
-  }
-
-  return isUserExists;
 };
 
 const googleLoginToDb = async (payload: IGoogleLoginPayload) => {
@@ -205,7 +191,10 @@ const googleLoginToDb = async (payload: IGoogleLoginPayload) => {
 
     if (isRequesterExistWithCredentials) {
       if (!isRequesterExistWithCredentials.emailVerified) {
-        throw new AppError(httpStatus.UNAUTHORIZED, "Email not verified");
+        throw new AppError(
+          httpStatus.UNAUTHORIZED,
+          "User Email is not verified",
+        );
       }
       if (isRequesterExistWithCredentials.status === UserStatus.BLOCKED) {
         throw new AppError(
@@ -339,7 +328,6 @@ const refreshToken = async (token: string) => {
 export const AuthServices = {
   registerUserToDb,
   loginUserToDb,
-  getMeFromDb,
   googleLoginToDb,
   refreshToken,
 };

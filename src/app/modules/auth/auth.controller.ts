@@ -3,7 +3,7 @@ import { catchAsync } from "../../utils/catchAsync";
 import { AuthServices } from "./auth.service";
 import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
-import { AppError } from "../../utils/AppError";
+
 
 const registerUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -57,25 +57,6 @@ const loginUser = catchAsync(
       statusCode: httpStatus.OK,
       message: "User Login Successful",
       data: { accessToken, refreshToken },
-    });
-  },
-);
-
-const getMe = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const user = req.user;
-    if (!user) {
-      throw new AppError(
-        httpStatus.NOT_FOUND,
-        "user information is missing in the request",
-      );
-    }
-    const result = await AuthServices.getMeFromDb(user);
-    sendResponse(res, {
-      success: true,
-      statusCode: httpStatus.OK,
-      message: "User profile fetched successfully",
-      data: result,
     });
   },
 );
@@ -139,10 +120,23 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const logout = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "User logged out successfully",
+      data: null,
+    });
+  },
+);
+
 export const AuthControllers = {
   registerUser,
   loginUser,
-  getMe,
   googleLogin,
   refreshToken,
+  logout,
 };
