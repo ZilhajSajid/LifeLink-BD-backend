@@ -12,6 +12,7 @@ import { notFound } from "./app/middlewares/notFound";
 import { globalErrorHandler } from "./app/middlewares/globalErrorHandler";
 import { AuthRoutes } from "./app/modules/auth/auth.route";
 import { UserRoutes } from "./app/modules/user/user.route";
+import crypto from "crypto";
 
 const app: Application = express();
 
@@ -27,28 +28,22 @@ app.use(cookieParser());
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/users", UserRoutes);
 
-// app.post("/zod", async (req: Request, res: Response, next: NextFunction) => {
-//   try {
-//     const payload = req.body;
+app.get("/test", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const payload = req.body;
 
-//     const UserZodSchema = z.object({
-//       name: z.string(),
-//       age: z.number(),
-//       isVerified: z.boolean(),
-//       books: z.array(z.string()),
-//     });
+    const otp = crypto.randomInt(100000, 1000000);
 
-//     const result = UserZodSchema.parse(payload);
-//     res.status(httpStatus.OK).json({
-//       success: true,
-//       message: "Welcome to LifeLink BD system backend",
-//       data: result,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     next(error);
-//   }
-// });
+    res.status(httpStatus.OK).json({
+      success: true,
+      message: "Welcome to LifeLink BD system backend",
+      data: otp,
+    });
+  } catch (error) {
+    console.log(error);
+    next(error);
+  }
+});
 
 // basic route
 app.get("/", async (req: Request, res: Response) => {

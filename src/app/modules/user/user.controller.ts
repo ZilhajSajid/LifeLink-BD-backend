@@ -23,5 +23,27 @@ const getMe = catchAsync(
     });
   },
 );
+const forgetPassword = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body;
+  await UserServices.forgetPassword(payload);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: `otp sent to ${payload.email}`,
+    data: null,
+  });
+});
+const resetPassword = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const payload = req.body;
+    await UserServices.resetPassword(payload);
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Password changed successfully",
+      data: null,
+    });
+  },
+);
 
-export const UserController = { getMe };
+export const UserController = { getMe, forgetPassword, resetPassword };

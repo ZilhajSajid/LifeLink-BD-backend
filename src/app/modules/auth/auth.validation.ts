@@ -42,4 +42,4 @@ const LoginSchema = z.object({
     }),
 });
 
-export const UserValidation = { RegistrationSchema, LoginSchema };
+export const AuthValidation = { RegistrationSchema, LoginSchema };

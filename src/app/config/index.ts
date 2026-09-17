@@ -30,4 +30,13 @@ export default {
   tester_donor_name: process.env.TESTER_DONOR_NAME!,
   tester_donor_email: process.env.TESTER_DONOR_EMAIL!,
   tester_donor_password: process.env.TESTER_DONOR_PASSWORD!,
+
+  redis_username: process.env.REDIS_USERNAME!,
+  redis_password: process.env.REDIS_PASSWORD!,
+  redis_host: process.env.REDIS_HOST!,
+  redis_port: process.env.REDIS_PORT!,
+
+  smtp_username: process.env.SMTP_USER!,
+  email_sender: process.env.EMAIL_SENDER!,
+  smtp_password: process.env.SMTP_PASSWORD!,
 };

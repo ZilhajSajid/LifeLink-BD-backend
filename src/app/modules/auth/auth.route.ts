@@ -1,18 +1,18 @@
 import { Router } from "express";
 import { AuthControllers } from "./auth.controller";
-import { UserValidation } from "./auth.validation";
+import { AuthValidation } from "./auth.validation";
 import { validateRequest } from "../../middlewares/validateRequest";
 
 const router = Router();
 
 router.post(
   "/register",
-  validateRequest(UserValidation.RegistrationSchema),
+  validateRequest(AuthValidation.RegistrationSchema),
   AuthControllers.registerUser,
 );
 router.post(
   "/login",
-  validateRequest(UserValidation.LoginSchema),
+  validateRequest(AuthValidation.LoginSchema),
   AuthControllers.loginUser,
 );
 router.post("/google", AuthControllers.googleLogin);
