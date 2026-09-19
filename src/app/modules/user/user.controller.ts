@@ -45,5 +45,30 @@ const resetPassword = catchAsync(
     });
   },
 );
+const uploadProfileImage = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.file) {
+      throw new AppError(httpStatus.NOT_FOUND, "No files found");
+    }
 
-export const UserController = { getMe, forgetPassword, resetPassword };
+    const userId = req.user?.userId;
+
+    const result = await UserServices.uploadProfileImage(
+      req.file?.buffer,
+      userId!,
+    );
+    sendResponse(res, {
+      success: true,
+      statusCode: httpStatus.OK,
+      message: "Profile picture updated successfully",
+      data: result,
+    });
+  },
+);
+
+export const UserController = {
+  getMe,
+  forgetPassword,
+  resetPassword,
+  uploadProfileImage,
+};

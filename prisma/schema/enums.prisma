@@ -2,6 +2,7 @@ enum Role {
   DONOR
   REQUESTER
   ADMIN
+  SUPER_ADMIN
 }
 
 enum AuthProvider {

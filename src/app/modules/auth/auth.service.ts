@@ -365,7 +365,7 @@ const googleLoginToDb = async (payload: IGoogleLoginPayload) => {
       html,
     });
   }
-  console.log("email sent");
+
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, "User not found");
   }
