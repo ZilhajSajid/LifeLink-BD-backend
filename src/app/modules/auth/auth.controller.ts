@@ -4,35 +4,61 @@ import { AuthServices } from "./auth.service";
 import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
 
-
 const registerUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const payload = req.body;
 
-    const result = await AuthServices.registerUserToDb(payload);
-    const { accessToken, refreshToken, user, requester } = result;
+    await AuthServices.registerUserToDb(payload);
+    // const { accessToken, refreshToken, user, requester } = result;
 
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24,
-    });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    });
+    // res.cookie("accessToken", accessToken, {
+    //   httpOnly: true,
+    //   secure: false,
+    //   sameSite: "none",
+    //   maxAge: 1000 * 60 * 60 * 24,
+    // });
+    // res.cookie("refreshToken", refreshToken, {
+    //   httpOnly: true,
+    //   secure: false,
+    //   sameSite: "none",
+    //   maxAge: 1000 * 60 * 60 * 24 * 7,
+    // });
 
     sendResponse(res, {
       success: true,
       statusCode: httpStatus.CREATED,
-      message: "User Registration Successful",
-      data: { accessToken, refreshToken, user, requester },
+      message: "Verification OTP sent",
+      data: null,
     });
   },
 );
+const verifyRequesterEmail = catchAsync(async (req: Request, res: Response) => {
+  const payload = req.body;
+
+  const result = await AuthServices.verifyRequesterEmail(payload);
+  const { accessToken, refreshToken, user, requester } = result;
+
+  res.cookie("accessToken", accessToken, {
+    httpOnly: true,
+    secure: false,
+    sameSite: "none",
+    maxAge: 1000 * 60 * 60 * 24,
+  });
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: false,
+    sameSite: "none",
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  });
+
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.CREATED,
+    message: "Email verified successfully",
+    data: { accessToken, refreshToken, user, requester },
+  });
+});
+
 const loginUser = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const payload = req.body;
@@ -135,6 +161,7 @@ const logout = catchAsync(
 
 export const AuthControllers = {
   registerUser,
+  verifyRequesterEmail,
   loginUser,
   googleLogin,
   refreshToken,

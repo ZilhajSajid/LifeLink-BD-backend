@@ -25,6 +25,10 @@ const RegistrationSchema = z.object({
     })
     .optional(),
 });
+const EmailVerificationSchema = z.object({
+  email: z.email("Not a valid email"),
+  otp: z.string().length(6),
+});
 const LoginSchema = z.object({
   email: z.email("Not a valid email"),
   password: z
@@ -42,4 +46,8 @@ const LoginSchema = z.object({
     }),
 });
 
-export const AuthValidation = { RegistrationSchema, LoginSchema };
+export const AuthValidation = {
+  RegistrationSchema,
+  EmailVerificationSchema,
+  LoginSchema,
+};

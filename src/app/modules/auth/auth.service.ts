@@ -4,6 +4,7 @@ import type {
   IGoogleLoginPayload,
   ILoginUserPayload,
   IRegisterUserToDbPayload,
+  IVerifyEmailPayload,
 } from "./auth.interface";
 import httpStatus from "http-status";
 import bcrypt from "bcrypt";
@@ -18,9 +19,14 @@ import { jwtUtils } from "../../utils/jwt";
 import type { JwtPayload, SignOptions } from "jsonwebtoken";
 import { googleClient } from "../../lib/googleAuth";
 import type { TokenPayload } from "google-auth-library";
+import crypto from "crypto";
+import { redisClient } from "../../lib/redis";
+import path from "path";
+import { transporter } from "../../lib/nodemailer";
+import ejs from "ejs";
 
 const registerUserToDb = async (payload: IRegisterUserToDbPayload) => {
-  const { name, password } = payload;
+  const { name, password, requester: requesterData } = payload;
   const email = payload.email.trim().toLowerCase();
 
   const isUserExist = await prisma.user.findUnique({
@@ -39,18 +45,133 @@ const registerUserToDb = async (payload: IRegisterUserToDbPayload) => {
     Number(config.bcrypt_salt_rounds),
   );
 
+  const expirationSeconds = 5 * 60;
+
+  const otpKey = `requester-registration-otp:${email}`;
+  const otpValue = crypto.randomInt(100000, 1000000).toString();
+
+  await redisClient.set(otpKey, otpValue, {
+    expiration: { type: "EX", value: expirationSeconds },
+  });
+
+  const requesterRegistrationKey = `requester-registration-data:${email}`;
+
+  const redisUserDataPayload = {
+    name,
+    email,
+    password: hashedPassword,
+    requester: requesterData,
+  };
+  await redisClient.set(
+    requesterRegistrationKey,
+    JSON.stringify(redisUserDataPayload),
+    {
+      expiration: { type: "EX", value: expirationSeconds },
+    },
+  );
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/register-user-otp.ejs",
+  );
+
+  const templateData = {
+    name,
+    email,
+    otp: otpValue,
+    expirationMinutes: expirationSeconds / 60,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: email,
+    subject: "LifeLink BD - Email Verification",
+    html,
+  });
+};
+
+const verifyRequesterEmail = async (payload: IVerifyEmailPayload) => {
+  const otp = payload.otp;
+  const email = payload.email.trim().toLowerCase();
+
+  const isUserExist = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (isUserExist?.emailVerified) {
+    throw new AppError(
+      httpStatus.CONFLICT,
+      "User with this email already verified",
+    );
+  }
+  if (isUserExist?.status === "BLOCKED") {
+    throw new AppError(httpStatus.FORBIDDEN, "This user is blocked");
+  }
+
+  if (isUserExist?.status === "DELETED" || isUserExist?.deletedAt) {
+    throw new AppError(httpStatus.FORBIDDEN, "This user is deleted");
+  }
+
+  const otpKey = `requester-registration-otp:${email}`;
+  const redisOtp = await redisClient.get(otpKey);
+
+  if (!redisOtp) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Invalid OTP");
+  }
+  if (redisOtp !== otp) {
+    throw new AppError(httpStatus.BAD_REQUEST, "OTP didn't match");
+  }
+  await redisClient.del(otpKey);
+
+  const requesterRegistrationKey = `requester-registration-data:${email}`;
+
+  const redisRequesterData = await redisClient.get(requesterRegistrationKey);
+  if (!redisRequesterData) {
+    throw new AppError(httpStatus.NOT_FOUND, "User doesn't exist");
+  }
+
+  const requesterPayload: IRegisterUserToDbPayload =
+    JSON.parse(redisRequesterData);
+
   const createdUser = await prisma.user.create({
     data: {
-      name,
-      email,
-      password: hashedPassword,
+      name: requesterPayload.name,
+      email: requesterPayload.email,
+      password: requesterPayload.password,
       role: Role.REQUESTER,
       status: UserStatus.ACTIVE,
-      emailVerified: false,
-      requester: { create: { type: RequesterType.PATIENT } },
+      emailVerified: true,
+      requester: {
+        create: {
+          type: RequesterType.PATIENT,
+          contactNumber: requesterPayload?.requester?.contactNumber || "",
+        },
+      },
     },
     omit: { password: true },
     include: { requester: true },
+  });
+
+  await redisClient.del(requesterRegistrationKey);
+
+  const templatePath = path.join(
+    process.cwd(),
+    "src/app/templates/requester-welcome-email.ejs",
+  );
+
+  const templateData = {
+    name: createdUser.name,
+  };
+
+  const html = await ejs.renderFile(templatePath, templateData);
+
+  await transporter.sendMail({
+    from: config.email_sender,
+    to: email,
+    subject: "Welcome to LifeLink Emergency Healthcare System",
+    html,
   });
 
   const { requester, ...user } = createdUser;
@@ -226,18 +347,25 @@ const googleLoginToDb = async (payload: IGoogleLoginPayload) => {
       });
     }
 
-    user = await prisma.user.create({
-      data: {
-        name: googleIdTokenPayload.name,
-        email: googleIdTokenPayload.email,
-        role: Role.REQUESTER,
-        googleId: googleIdTokenPayload.sub,
-        authProvider: AuthProvider.GOOGLE,
-        emailVerified: true,
-        requester: { create: { type: RequesterType.PATIENT } },
-      },
+    const templatePath = path.join(
+      process.cwd(),
+      "src/app/templates/requester-welcome-email.ejs",
+    );
+
+    const templateData = {
+      name: user.name,
+    };
+
+    const html = await ejs.renderFile(templatePath, templateData);
+
+    await transporter.sendMail({
+      from: config.email_sender,
+      to: user.email,
+      subject: "Welcome to LifeLink Emergency Healthcare System",
+      html,
     });
   }
+  console.log("email sent");
   if (!user) {
     throw new AppError(httpStatus.NOT_FOUND, "User not found");
   }
@@ -327,6 +455,7 @@ const refreshToken = async (token: string) => {
 
 export const AuthServices = {
   registerUserToDb,
+  verifyRequesterEmail,
   loginUserToDb,
   googleLoginToDb,
   refreshToken,
