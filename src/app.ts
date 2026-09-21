@@ -13,6 +13,9 @@ import { globalErrorHandler } from "./app/middlewares/globalErrorHandler";
 import { AuthRoutes } from "./app/modules/auth/auth.route";
 import { UserRoutes } from "./app/modules/user/user.route";
 import crypto from "crypto";
+import { getBkashIdToken } from "./app/lib/bkash";
+import { PaymentRoutes } from "./app/modules/payment/payment.route";
+import { RequestsRoutes } from "./app/modules/requests/requests.route";
 
 const app: Application = express();
 
@@ -27,17 +30,18 @@ app.use(cookieParser());
 
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/users", UserRoutes);
+app.use("/api/v1/payment", PaymentRoutes);
+app.use("/api/v1/requests", RequestsRoutes);
 
 app.get("/test", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const payload = req.body;
-
-    const otp = crypto.randomInt(100000, 1000000);
+    const grantIdToken = await getBkashIdToken();
+    console.log(grantIdToken, "IdToken");
 
     res.status(httpStatus.OK).json({
       success: true,
       message: "Welcome to LifeLink BD system backend",
-      data: otp,
+      data: null,
     });
   } catch (error) {
     console.log(error);
