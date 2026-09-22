@@ -5,10 +5,10 @@ model DonationAssignment {
   completedAt DateTime?
 
   bloodRequestId String
-  bloodRequest   BloodRequest @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  // bloodRequest   BloodRequest @relation(fields: [bloodRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   donorId String
-  donor   Donor  @relation(fields: [donorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  // donor   Donor  @relation(fields: [donorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   donation Donation?
 

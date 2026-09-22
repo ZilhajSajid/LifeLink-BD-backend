@@ -3,7 +3,7 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "./AppError";
 import httpStatus from "http-status";
 import bcrypt from "bcrypt";
-import { Role } from "../../generated/prisma/enums";
+import { BloodGroupType, Gender, Role } from "../../generated/prisma/enums";
 
 export const seedSuperAdmin = async () => {
   try {
@@ -127,6 +127,12 @@ export const seedTesterDonor = async () => {
         role: Role.DONOR,
         emailVerified: true,
         needPasswordChange: false,
+        donor: {
+          create: {
+            bloodGroup: BloodGroupType.B_POSITIVE,
+            gender: Gender.MALE,
+          },
+        },
       },
     });
     console.log("Tester Donor Created: ", testerDonor);

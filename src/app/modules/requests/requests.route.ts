@@ -7,8 +7,18 @@ const router = Router();
 
 router.post(
   "/create-requests",
-  //   auth(Role.REQUESTER),
+  auth(Role.REQUESTER),
   RequestsController.createRequests,
+);
+router.post(
+  "/pay-requests",
+  auth(Role.REQUESTER),
+  RequestsController.payExistingRequests,
+);
+router.post(
+  "/cancel-requests",
+  auth(Role.REQUESTER, Role.ADMIN, Role.SUPER_ADMIN),
+  RequestsController.cancelRequests,
 );
 
 // create requests callback url

@@ -46,7 +46,7 @@ enum Urgency {
 
 enum BloodRequestsStatus {
   PENDING
-  VERIFIED
+  CONFIRMED
   MATCHING
   PARTIALLY_FULFILLED
   FULFILLED
@@ -79,4 +79,10 @@ enum PaymentStatus {
   FAILED
   CANCELLED
   REFUNDED
+}
+
+enum DonorVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
