@@ -16,6 +16,7 @@ import crypto from "crypto";
 import { getBkashIdToken } from "./app/lib/bkash";
 import { PaymentRoutes } from "./app/modules/payment/payment.route";
 import { RequestsRoutes } from "./app/modules/requests/requests.route";
+import { DonorRoutes } from "./app/modules/donor/donor.route";
 
 const app: Application = express();
 
@@ -32,6 +33,7 @@ app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/users", UserRoutes);
 app.use("/api/v1/payment", PaymentRoutes);
 app.use("/api/v1/requests", RequestsRoutes);
+app.use("/api/v1/donors", DonorRoutes);
 
 app.get("/test", async (req: Request, res: Response, next: NextFunction) => {
   try {

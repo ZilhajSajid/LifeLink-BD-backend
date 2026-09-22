@@ -10,11 +10,13 @@ model Donor {
   totalDonations     Int?                    @default(0)
   verificationStatus DonorVerificationStatus @default(PENDING)
   rejectionStatus    String?
+  rejectionReason String?
   reviewedBy         String?
   reviewedAt         DateTime?
 
   certificate     String?
-  additionalFiles String[]
+  certificatePublicId String?
+  additionalFiles Json?
 
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
