@@ -1,4 +1,4 @@
-import { isAfter, isBefore, isValid, parseISO } from "date-fns";
+import { isAfter, isBefore, isValid } from "date-fns";
 import {
   BloodRequestsStatus,
   DonationAssignmentStatus,
@@ -11,6 +11,8 @@ import { AppError } from "../../utils/AppError";
 import { ICreateDonationPayload } from "./donationAssignment.interface";
 import httpStatus from "http-status";
 import { getCompatibleDonorGroups } from "../../utils/getCompatibleDonorGroups";
+import { IQuery } from "../../interfaces";
+import { DonationWhereInput } from "../../../generated/prisma/models";
 
 const createDonation = async (
   payload: ICreateDonationPayload,
@@ -85,7 +87,7 @@ const createDonation = async (
       "The required date for this blood request has already passed",
     );
   }
-  const scheduledDate = parseISO(scheduledAt);
+  const scheduledDate = scheduledAt;
   if (!isValid(scheduledDate)) {
     throw new AppError(httpStatus.BAD_REQUEST, "Invalid scheduled date");
   }
@@ -166,4 +168,335 @@ const createDonation = async (
   return transactionResult;
 };
 
-export const DonationAssignmentService = { createDonation };
+const getMyDonations = async (query: IQuery) => {
+  const limit = query.limit ? Number(query.limit) : 10;
+  const page = query.page ? Number(query.page) : 1;
+  const skip = (page - 1) * limit;
+  const sortBy = query.sortBy ? query.sortBy : "createdAt";
+  const sortOrder = query.sortOrder ? query.sortOrder : "desc";
+
+  const andConditions: DonationWhereInput[] = [];
+
+  if (query.status) {
+    andConditions.push({
+      status: query.status,
+    });
+  }
+
+  if (query.searchTerm) {
+    andConditions.push({
+      assignment: {
+        bloodRequest: {
+          OR: [
+            {
+              hospitalName: {
+                contains: query.searchTerm,
+                mode: "insensitive",
+              },
+            },
+            {
+              hospitalAddress: {
+                contains: query.searchTerm,
+                mode: "insensitive",
+              },
+            },
+            {
+              city: {
+                contains: query.searchTerm,
+                mode: "insensitive",
+              },
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  const donations = await prisma.donation.findMany({
+    where: {
+      AND: andConditions,
+    },
+
+    take: limit,
+
+    skip,
+
+    orderBy: {
+      [sortBy]: sortOrder,
+    },
+
+    include: {
+      assignment: {
+        select: {
+          id: true,
+          status: true,
+          acceptedAt: true,
+          completedAt: true,
+
+          bloodRequest: {
+            select: {
+              id: true,
+              bloodGroup: true,
+              unitsRequired: true,
+              unitsFulfilled: true,
+              urgency: true,
+              hospitalName: true,
+              hospitalAddress: true,
+              city: true,
+              requiredDate: true,
+              status: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const totalDonations = await prisma.donation.count({
+    where: {
+      AND: andConditions,
+    },
+  });
+
+  return {
+    data: donations,
+
+    meta: {
+      page,
+      limit,
+      total: totalDonations,
+      totalPages: Math.ceil(totalDonations / limit),
+    },
+  };
+};
+
+const getDonationById = async (assignmentId: string) => {
+  const donation = await prisma.donation.findUnique({
+    where: {
+      id: assignmentId,
+    },
+    include: {
+      assignment: {
+        include: {
+          bloodRequest: {
+            select: {
+              id: true,
+              bloodGroup: true,
+              unitsRequired: true,
+              unitsFulfilled: true,
+              urgency: true,
+              hospitalName: true,
+              hospitalAddress: true,
+              city: true,
+              requiredDate: true,
+              reason: true,
+              status: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!donation) {
+    throw new AppError(httpStatus.NOT_FOUND, "Donation not found");
+  }
+
+  return donation;
+};
+
+const completeDonation = async (donationId: string, userId: string) => {
+  const donor = await prisma.donor.findUnique({
+    where: {
+      userId,
+    },
+  });
+
+  if (!donor) {
+    throw new AppError(httpStatus.NOT_FOUND, "Donor profile not found");
+  }
+
+  const donation = await prisma.donation.findFirst({
+    where: {
+      id: donationId,
+      assignment: {
+        donorId: donor.id,
+      },
+    },
+    include: {
+      assignment: {
+        include: {
+          bloodRequest: true,
+        },
+      },
+    },
+  });
+
+  if (!donation) {
+    throw new AppError(httpStatus.NOT_FOUND, "Donation not found");
+  }
+
+  if (donation.status === DonationStatus.COMPLETED) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Donation has already been completed",
+    );
+  }
+
+  if (donation.status === DonationStatus.CANCELLED) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Cancelled donation cannot be completed",
+    );
+  }
+
+  if (donation.assignment.status !== DonationAssignmentStatus.ACCEPTED) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Donation assignment is not accepted",
+    );
+  }
+
+  const now = new Date();
+
+  const result = await prisma.$transaction(async (tx) => {
+    const completedDonation = await tx.donation.update({
+      where: {
+        id: donation.id,
+      },
+      data: {
+        status: DonationStatus.COMPLETED,
+        donatedAt: now,
+      },
+    });
+
+    await tx.donationAssignment.update({
+      where: {
+        id: donation.assignmentId,
+      },
+      data: {
+        status: DonationAssignmentStatus.COMPLETED,
+        completedAt: now,
+      },
+    });
+
+    await tx.donor.update({
+      where: {
+        id: donor.id,
+      },
+      data: {
+        lastDonationDate: now,
+        totalDonations: {
+          increment: 1,
+        },
+        isAvailable: false,
+      },
+    });
+
+    const bloodRequest = donation.assignment.bloodRequest;
+
+    const newUnitsFulfilled = bloodRequest.unitsFulfilled + donation.units;
+
+    const newStatus =
+      newUnitsFulfilled >= bloodRequest.unitsRequired
+        ? BloodRequestsStatus.FULFILLED
+        : BloodRequestsStatus.PARTIALLY_FULFILLED;
+
+    await tx.bloodRequest.update({
+      where: {
+        id: bloodRequest.id,
+      },
+      data: {
+        unitsFulfilled: newUnitsFulfilled,
+        status: newStatus,
+      },
+    });
+
+    return completedDonation;
+  });
+
+  return result;
+};
+
+const deleteDonation = async (donationId: string, userId: string) => {
+  const donor = await prisma.donor.findUnique({
+    where: {
+      userId,
+    },
+  });
+
+  if (!donor) {
+    throw new AppError(httpStatus.NOT_FOUND, "Donor profile not found");
+  }
+
+  const donation = await prisma.donation.findFirst({
+    where: {
+      id: donationId,
+      assignment: {
+        donorId: donor.id,
+      },
+    },
+    include: {
+      assignment: {
+        include: {
+          bloodRequest: true,
+        },
+      },
+    },
+  });
+
+  if (!donation) {
+    throw new AppError(httpStatus.NOT_FOUND, "Donation not found");
+  }
+
+  if (donation.status === DonationStatus.COMPLETED) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Completed donation cannot be cancelled",
+    );
+  }
+
+  if (donation.status === DonationStatus.CANCELLED) {
+    throw new AppError(httpStatus.BAD_REQUEST, "Donation is already cancelled");
+  }
+
+  if (donation.assignment.status !== DonationAssignmentStatus.ACCEPTED) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Only an accepted donation can be cancelled",
+    );
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const cancelledDonation = await tx.donation.update({
+      where: {
+        id: donation.id,
+      },
+      data: {
+        status: DonationStatus.CANCELLED,
+      },
+    });
+
+    await tx.donationAssignment.update({
+      where: {
+        id: donation.assignmentId,
+      },
+      data: {
+        status: DonationAssignmentStatus.CANCELLED,
+      },
+    });
+
+    return cancelledDonation;
+  });
+
+  return result;
+};
+
+export const DonationAssignmentService = {
+  createDonation,
+  getMyDonations,
+  getDonationById,
+  completeDonation,
+  deleteDonation,
+};
