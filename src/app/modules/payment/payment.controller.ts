@@ -16,5 +16,17 @@ const getMyPayments = catchAsync(async (req: Request, res: Response) => {
     meta: meta,
   });
 });
+const getAllPayments = catchAsync(async (req: Request, res: Response) => {
+  const query = req.query;
 
-export const PaymentController = { getMyPayments };
+  const { data, meta } = await PaymentService.getAllPayments(query);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "All Payments retrieved successfully",
+    data: data,
+    meta: meta,
+  });
+});
+
+export const PaymentController = { getMyPayments, getAllPayments };

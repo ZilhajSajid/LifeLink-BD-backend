@@ -9,5 +9,10 @@ router.get(
   auth(Role.REQUESTER),
   PaymentController.getMyPayments,
 );
+router.get(
+  "/all-payments",
+  auth(Role.ADMIN, Role.SUPER_ADMIN),
+  PaymentController.getAllPayments,
+);
 
 export const PaymentRoutes = router;
