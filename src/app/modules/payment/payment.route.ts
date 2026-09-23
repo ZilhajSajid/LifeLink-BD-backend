@@ -14,5 +14,10 @@ router.get(
   auth(Role.ADMIN, Role.SUPER_ADMIN),
   PaymentController.getAllPayments,
 );
+router.get(
+  "/:paymentId",
+  auth(Role.REQUESTER, Role.ADMIN, Role.SUPER_ADMIN),
+  PaymentController.getSinglePayment,
+);
 
 export const PaymentRoutes = router;

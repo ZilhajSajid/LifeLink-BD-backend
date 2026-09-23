@@ -28,5 +28,21 @@ const getAllPayments = catchAsync(async (req: Request, res: Response) => {
     meta: meta,
   });
 });
+const getSinglePayment = catchAsync(async (req: Request, res: Response) => {
+  const params = req.params.paymentId as string;
+  const user = req.user!;
 
-export const PaymentController = { getMyPayments, getAllPayments };
+  const result = await PaymentService.getSinglePayment(params, user);
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    message: "Single Payment retrieved successfully",
+    data: result,
+  });
+});
+
+export const PaymentController = {
+  getMyPayments,
+  getAllPayments,
+  getSinglePayment,
+};

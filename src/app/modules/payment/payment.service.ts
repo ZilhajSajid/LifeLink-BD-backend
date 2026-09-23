@@ -1,3 +1,4 @@
+import { Role } from "../../../generated/prisma/enums";
 import { PaymentWhereInput } from "../../../generated/prisma/models";
 import { IQuery } from "../../interfaces";
 import { prisma } from "../../lib/prisma";
@@ -143,4 +144,66 @@ const getAllPayments = async (query: IQuery) => {
   };
 };
 
-export const PaymentService = { getMyPayments, getAllPayments };
+const getSinglePayment = async (paymentId: string, user: RequestUser) => {
+  const payment = await prisma.payment.findUnique({
+    where: {
+      id: paymentId,
+    },
+    include: {
+      request: {
+        select: {
+          id: true,
+          bloodGroup: true,
+          unitsRequired: true,
+          unitsFulfilled: true,
+          urgency: true,
+          hospitalName: true,
+          hospitalAddress: true,
+          city: true,
+          requiredDate: true,
+          reason: true,
+          status: true,
+          requester: {
+            select: {
+              id: true,
+              type: true,
+              organizationName: true,
+              address: true,
+              city: true,
+              contactNumber: true,
+              userId: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!payment) {
+    throw new AppError(httpStatus.NOT_FOUND, "Payment not found");
+  }
+
+  if (user.role === Role.REQUESTER) {
+    if (payment.request.requester.userId !== user.userId) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        "You are not authorized to view this payment",
+      );
+    }
+  }
+
+  return payment;
+};
+
+export const PaymentService = {
+  getMyPayments,
+  getAllPayments,
+  getSinglePayment,
+};
