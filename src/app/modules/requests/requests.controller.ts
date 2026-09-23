@@ -39,6 +39,18 @@ const cancelRequests = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+const getMyRequests = catchAsync(async (req: Request, res: Response) => {
+  const query = req.query;
+  const user = req.user?.userId as string;
+  const { data, meta } = await RequestsService.getMyRequests(query, user);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Blood requests retrieved successfully",
+    data: data,
+    meta: meta,
+  });
+});
 
 const createRequestsCallback = catchAsync(
   async (req: Request, res: Response) => {
@@ -54,5 +66,6 @@ export const RequestsController = {
   createRequests,
   payExistingRequests,
   cancelRequests,
+  getMyRequests,
   createRequestsCallback,
 };

@@ -32,7 +32,7 @@ app.use(cookieParser());
 
 app.use("/api/v1/auth", AuthRoutes);
 app.use("/api/v1/users", UserRoutes);
-app.use("/api/v1/payment", PaymentRoutes);
+app.use("/api/v1/payments", PaymentRoutes);
 app.use("/api/v1/requests", RequestsRoutes);
 app.use("/api/v1/donors", DonorRoutes);
 app.use("/api/v1/donations", DonationRoutes);

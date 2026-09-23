@@ -24,6 +24,12 @@ router.post(
   RequestsController.cancelRequests,
 );
 
+router.get(
+  "/my-requests",
+  auth(Role.REQUESTER),
+  RequestsController.getMyRequests,
+);
+
 // create requests callback url
 router.get(
   "/create-requests/payment/callback",
