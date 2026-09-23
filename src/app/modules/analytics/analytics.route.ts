@@ -10,5 +10,10 @@ router.get(
   auth(Role.ADMIN, Role.SUPER_ADMIN),
   AnalyticsController.getAdminAnalytics,
 );
+router.get(
+  "/donor-analytics",
+  auth(Role.DONOR),
+  AnalyticsController.getDonorAnalytics,
+);
 
 export const AnalyticsRoutes = router;

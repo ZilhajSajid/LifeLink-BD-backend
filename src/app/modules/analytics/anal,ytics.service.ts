@@ -1,10 +1,16 @@
-import { BloodRequestsStatus, DonationStatus, DonorVerificationStatus, PaymentStatus } from "../../../generated/prisma/enums";
+import {
+  BloodRequestsStatus,
+  DonationAssignmentStatus,
+  DonationStatus,
+  DonorVerificationStatus,
+  PaymentStatus,
+} from "../../../generated/prisma/enums";
 import { prisma } from "../../lib/prisma";
-
+import { RequestUser } from "../../middlewares/checkAuth";
+import { AppError } from "../../utils/AppError";
+import httpStatus from "http-status";
 
 const getAdminAnalytics = async () => {
-
-
   const totalDonors = await prisma.donor.count({
     where: {
       isDeleted: false,
@@ -40,15 +46,7 @@ const getAdminAnalytics = async () => {
     },
   });
 
-  // =========================
-  // Requester Analytics
-  // =========================
-
   const totalRequesters = await prisma.requesterProfile.count();
-
-  // =========================
-  // Blood Request Analytics
-  // =========================
 
   const totalBloodRequests = await prisma.bloodRequest.count();
 
@@ -100,10 +98,6 @@ const getAdminAnalytics = async () => {
     },
   });
 
-  // =========================
-  // Donation Analytics
-  // =========================
-
   const totalDonations = await prisma.donation.count();
 
   const totalScheduledDonations = await prisma.donation.count({
@@ -123,10 +117,6 @@ const getAdminAnalytics = async () => {
       status: DonationStatus.CANCELLED,
     },
   });
-
-  // =========================
-  // Payment Analytics
-  // =========================
 
   const totalPayments = await prisma.payment.count();
 
@@ -148,10 +138,6 @@ const getAdminAnalytics = async () => {
     },
   });
 
-  // =========================
-  // Total Revenue
-  // =========================
-
   const totalRevenueResult = await prisma.payment.aggregate({
     where: {
       status: PaymentStatus.PAID,
@@ -161,12 +147,7 @@ const getAdminAnalytics = async () => {
     },
   });
 
-  const totalRevenue =
-    totalRevenueResult._sum.amount?.toNumber() || 0;
-
-  // =========================
-  // Return Analytics
-  // =========================
+  const totalRevenue = totalRevenueResult._sum.amount?.toNumber() || 0;
 
   return {
     totalDonors,
@@ -200,5 +181,120 @@ const getAdminAnalytics = async () => {
     totalRevenue,
   };
 };
+const getDonorAnalytics = async (user: RequestUser) => {
+  const donor = await prisma.donor.findUnique({
+    where: {
+      userId: user.userId,
+    },
+  });
 
-export const AnalyticsService = { getAdminAnalytics };
+  if (!donor) {
+    throw new AppError(httpStatus.NOT_FOUND, "Donor profile not found");
+  }
+
+  // Total donation assignments
+  const totalDonationAssignments = await prisma.donationAssignment.count({
+    where: {
+      donorId: donor.id,
+    },
+  });
+
+  // Pending donation assignments
+  const pendingDonationAssignments = await prisma.donationAssignment.count({
+    where: {
+      donorId: donor.id,
+      status: DonationAssignmentStatus.PENDING,
+    },
+  });
+
+  const acceptedDonationAssignments = await prisma.donationAssignment.count({
+    where: {
+      donorId: donor.id,
+      status: DonationAssignmentStatus.ACCEPTED,
+    },
+  });
+
+  const completedDonationAssignments = await prisma.donationAssignment.count({
+    where: {
+      donorId: donor.id,
+      status: DonationAssignmentStatus.COMPLETED,
+    },
+  });
+
+  const cancelledDonationAssignments = await prisma.donationAssignment.count({
+    where: {
+      donorId: donor.id,
+      status: DonationAssignmentStatus.CANCELLED,
+    },
+  });
+
+  const totalDonations = await prisma.donation.count({
+    where: {
+      assignment: {
+        donorId: donor.id,
+      },
+    },
+  });
+
+  const scheduledDonations = await prisma.donation.count({
+    where: {
+      assignment: {
+        donorId: donor.id,
+      },
+      status: DonationStatus.SCHEDULED,
+    },
+  });
+
+  const completedDonations = await prisma.donation.count({
+    where: {
+      assignment: {
+        donorId: donor.id,
+      },
+      status: DonationStatus.COMPLETED,
+    },
+  });
+
+  const cancelledDonations = await prisma.donation.count({
+    where: {
+      assignment: {
+        donorId: donor.id,
+      },
+      status: DonationStatus.CANCELLED,
+    },
+  });
+
+  const totalDonatedUnitsResult = await prisma.donation.aggregate({
+    where: {
+      assignment: {
+        donorId: donor.id,
+      },
+      status: DonationStatus.COMPLETED,
+    },
+    _sum: {
+      units: true,
+    },
+  });
+
+  const totalDonatedUnits = totalDonatedUnitsResult._sum.units || 0;
+
+  return {
+    totalDonationAssignments,
+    pendingDonationAssignments,
+    acceptedDonationAssignments,
+    completedDonationAssignments,
+    cancelledDonationAssignments,
+
+    totalDonations,
+    scheduledDonations,
+    completedDonations,
+    cancelledDonations,
+
+    totalDonatedUnits,
+
+    totalLifetimeDonations: donor.totalDonations || 0,
+    lastDonationDate: donor.lastDonationDate,
+    isAvailable: donor.isAvailable,
+  };
+};
+
+export const AnalyticsService = { getAdminAnalytics, getDonorAnalytics };
