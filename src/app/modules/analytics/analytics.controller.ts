@@ -27,4 +27,22 @@ const getDonorAnalytics = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-export const AnalyticsController = { getAdminAnalytics, getDonorAnalytics };
+const getRequesterAnalytics = catchAsync(
+  async (req: Request, res: Response) => {
+    const user = req.user!;
+    const result = await AnalyticsService.getRequesterAnalytics(user);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Requester analytics retrieved successfully",
+      data: result,
+    });
+  },
+);
+
+export const AnalyticsController = {
+  getAdminAnalytics,
+  getDonorAnalytics,
+  getRequesterAnalytics,
+};

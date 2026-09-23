@@ -296,5 +296,189 @@ const getDonorAnalytics = async (user: RequestUser) => {
     isAvailable: donor.isAvailable,
   };
 };
+const getRequesterAnalytics = async (user: RequestUser) => {
+  const requester = await prisma.requesterProfile.findUnique({
+    where: {
+      userId: user.userId,
+    },
+  });
 
-export const AnalyticsService = { getAdminAnalytics, getDonorAnalytics };
+  if (!requester) {
+    throw new AppError(httpStatus.NOT_FOUND, "Requester profile not found");
+  }
+
+  const totalBloodRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+    },
+  });
+
+  const pendingRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+      status: BloodRequestsStatus.PENDING,
+    },
+  });
+
+  const confirmedRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+      status: BloodRequestsStatus.CONFIRMED,
+    },
+  });
+
+  const matchingRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+      status: BloodRequestsStatus.MATCHING,
+    },
+  });
+
+  // Partially fulfilled requests
+  const partiallyFulfilledRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+      status: BloodRequestsStatus.PARTIALLY_FULFILLED,
+    },
+  });
+
+  // Fulfilled requests
+  const fulfilledRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+      status: BloodRequestsStatus.FULFILLED,
+    },
+  });
+
+  // Cancelled requests
+  const cancelledRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+      status: BloodRequestsStatus.CANCELLED,
+    },
+  });
+
+  // Rejected requests
+  const rejectedRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+      status: BloodRequestsStatus.REJECTED,
+    },
+  });
+
+  // Expired requests
+  const expiredRequests = await prisma.bloodRequest.count({
+    where: {
+      requesterId: requester.id,
+      status: BloodRequestsStatus.EXPIRED,
+    },
+  });
+
+  // Total payments
+  const totalPayments = await prisma.payment.count({
+    where: {
+      request: {
+        requesterId: requester.id,
+      },
+    },
+  });
+
+  // Paid payments
+  const paidPayments = await prisma.payment.count({
+    where: {
+      request: {
+        requesterId: requester.id,
+      },
+      status: PaymentStatus.PAID,
+    },
+  });
+
+  // Unpaid payments
+  const unpaidPayments = await prisma.payment.count({
+    where: {
+      request: {
+        requesterId: requester.id,
+      },
+      status: PaymentStatus.UNPAID,
+    },
+  });
+
+  // Failed payments
+  const failedPayments = await prisma.payment.count({
+    where: {
+      request: {
+        requesterId: requester.id,
+      },
+      status: PaymentStatus.FAILED,
+    },
+  });
+
+  // Total amount paid
+  const totalAmountPaidResult = await prisma.payment.aggregate({
+    where: {
+      request: {
+        requesterId: requester.id,
+      },
+      status: PaymentStatus.PAID,
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  const totalAmountPaid = totalAmountPaidResult._sum.amount?.toNumber() || 0;
+
+  // Total required blood units
+  const totalRequiredUnitsResult = await prisma.bloodRequest.aggregate({
+    where: {
+      requesterId: requester.id,
+    },
+    _sum: {
+      unitsRequired: true,
+    },
+  });
+
+  const totalRequiredUnits = totalRequiredUnitsResult._sum.unitsRequired || 0;
+
+  // Total fulfilled blood units
+  const totalFulfilledUnitsResult = await prisma.bloodRequest.aggregate({
+    where: {
+      requesterId: requester.id,
+    },
+    _sum: {
+      unitsFulfilled: true,
+    },
+  });
+
+  const totalFulfilledUnits =
+    totalFulfilledUnitsResult._sum.unitsFulfilled || 0;
+
+  return {
+    totalBloodRequests,
+
+    pendingRequests,
+    confirmedRequests,
+    matchingRequests,
+    partiallyFulfilledRequests,
+    fulfilledRequests,
+    cancelledRequests,
+    rejectedRequests,
+    expiredRequests,
+
+    totalRequiredUnits,
+    totalFulfilledUnits,
+
+    totalPayments,
+    paidPayments,
+    unpaidPayments,
+    failedPayments,
+
+    totalAmountPaid,
+  };
+};
+
+export const AnalyticsService = {
+  getAdminAnalytics,
+  getDonorAnalytics,
+  getRequesterAnalytics,
+};

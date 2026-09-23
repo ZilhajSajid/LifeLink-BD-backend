@@ -15,5 +15,10 @@ router.get(
   auth(Role.DONOR),
   AnalyticsController.getDonorAnalytics,
 );
+router.get(
+  "/requester-analytics",
+  auth(Role.REQUESTER),
+  AnalyticsController.getRequesterAnalytics,
+);
 
 export const AnalyticsRoutes = router;
