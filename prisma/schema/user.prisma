@@ -20,7 +20,7 @@ model User {
   requester RequesterProfile?
   donor     Donor?
 
-  // verifiedRequests BloodRequest[] @relation("VerifiedBy")
+  verifiedRequests BloodRequest[] @relation("VerifiedBy")
 
   @@map("users")
 }

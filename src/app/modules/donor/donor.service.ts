@@ -121,6 +121,7 @@ const applyAsDonor = async (
       },
     },
     include: { donor: true },
+    omit: { password: true },
   });
 
   const expirationSeconds = 60 * 60;

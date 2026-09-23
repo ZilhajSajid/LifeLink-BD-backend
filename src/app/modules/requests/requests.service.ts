@@ -1,5 +1,4 @@
 import {
-  BloodGroupType,
   BloodRequestsStatus,
   PaymentStatus,
 } from "../../../generated/prisma/enums";
@@ -9,12 +8,40 @@ import { prisma } from "../../lib/prisma";
 import { RequestUser } from "../../middlewares/checkAuth";
 import { AppError } from "../../utils/AppError";
 import httpStatus from "http-status";
+import {
+  ICancelRequestPayload,
+  ICreateRequestsPayload,
+} from "./requests.interface";
 
-const createRequests = async (payload: any, user: RequestUser) => {
+const createRequests = async (
+  payload: ICreateRequestsPayload,
+  user: RequestUser,
+) => {
+  const requester = await prisma.requesterProfile.findUnique({
+    where: { userId: user.userId },
+  });
+
+  if (!requester) {
+    throw new AppError(httpStatus.NOT_FOUND, "Requester profile not found");
+  }
   const transactionResult = await prisma.$transaction(async (tx) => {
     // business logic
     const bloodRequest = await tx.bloodRequest.create({
-      data: { status: BloodRequestsStatus.PENDING },
+      data: {
+        bloodGroup: payload.bloodGroup,
+        unitsRequired: payload.unitsRequired,
+        urgency: payload.urgency,
+        requiredDate: new Date(payload.requiredDate),
+
+        hospitalName: payload.hospitalName,
+        hospitalAddress: payload.hospitalAddress,
+        city: payload.city,
+        reason: payload.reason,
+
+        requesterId: requester.id,
+
+        status: BloodRequestsStatus.PENDING,
+      },
     });
 
     const bkashIdToken = await getBkashIdToken();
@@ -220,7 +247,7 @@ const createRequestsCallback = async (query: Record<string, any>) => {
   return transactionResult;
 };
 
-const cancelRequests = async (payload: any) => {
+const cancelRequests = async (payload: ICancelRequestPayload) => {
   const transactionResult = await prisma.$transaction(async (tx) => {
     const requestId = payload.requestId;
     const existingRequest = await tx.bloodRequest.findUnique({
