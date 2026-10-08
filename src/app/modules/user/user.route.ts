@@ -10,7 +10,7 @@ const router = Router();
 
 router.get(
   "/me",
-  auth(Role.ADMIN, Role.DONOR, Role.REQUESTER),
+  auth(Role.ADMIN, Role.DONOR, Role.REQUESTER, Role.SUPER_ADMIN),
   UserController.getMe,
 );
 

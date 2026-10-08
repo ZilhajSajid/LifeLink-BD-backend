@@ -128,6 +128,11 @@ const applyAsDonor = async (
 
   const otpKey = `donor-application-otp:${payload.user.email}`;
   const otpValue = crypto.randomInt(100000, 1000000).toString();
+
+  if (config.node_env === "development") {
+    console.log(`OTP for ${payload.user.email}: ${otpValue}`);
+  }
+
   await redisClient.set(otpKey, otpValue, {
     expiration: { type: "EX", value: expirationSeconds },
   });
