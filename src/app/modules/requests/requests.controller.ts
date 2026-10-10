@@ -3,6 +3,7 @@ import { catchAsync } from "../../utils/catchAsync";
 import { sendResponse } from "../../utils/sendResponse";
 import httpStatus from "http-status";
 import { RequestsService } from "./requests.service";
+import { getAllRequestsQuerySchema } from "./requests.validation";
 
 const createRequests = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body;
@@ -51,6 +52,18 @@ const getMyRequests = catchAsync(async (req: Request, res: Response) => {
     meta: meta,
   });
 });
+const getAllRequests = catchAsync(async (req, res) => {
+  const query = getAllRequestsQuerySchema.parse(req.query);
+  const result = await RequestsService.getAllRequests(query);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Blood requests fetched successfully",
+    data: result.data,
+    meta: result.meta,
+  });
+});
 
 const createRequestsCallback = catchAsync(
   async (req: Request, res: Response) => {
@@ -67,5 +80,6 @@ export const RequestsController = {
   payExistingRequests,
   cancelRequests,
   getMyRequests,
+  getAllRequests,
   createRequestsCallback,
 };

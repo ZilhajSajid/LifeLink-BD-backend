@@ -13,7 +13,9 @@ import {
   ICreateRequestsPayload,
 } from "./requests.interface";
 import { IQuery } from "../../interfaces";
-import { BloodRequestScalarWhereInput } from "../../../generated/prisma/models";
+import { BloodRequestWhereInput } from "../../../generated/prisma/models";
+import { Prisma } from "../../../generated/prisma/browser";
+import { GetAllRequestsQuery } from "./requests.validation";
 
 const createRequests = async (
   payload: ICreateRequestsPayload,
@@ -351,7 +353,7 @@ const getMyRequests = async (query: IQuery, userId: string) => {
     throw new AppError(httpStatus.NOT_FOUND, "Requester profile not found");
   }
 
-  const andConditions: BloodRequestScalarWhereInput[] = [
+  const andConditions: BloodRequestWhereInput[] = [
     {
       requesterId: requester.id,
     },
@@ -405,10 +407,86 @@ const getMyRequests = async (query: IQuery, userId: string) => {
   };
 };
 
+const getAllRequests = async (query: GetAllRequestsQuery) => {
+  const limit = query.limit ? Number(query.limit) : 10;
+  const page = query.page ? Number(query.page) : 1;
+  const skip = (page - 1) * limit;
+
+  const sortBy = query.sortBy || "createdAt";
+  const sortOrder = query.sortOrder || "desc";
+
+  const andConditions: BloodRequestWhereInput[] = [
+    {
+      status: {
+        in: [
+          BloodRequestsStatus.CONFIRMED,
+          BloodRequestsStatus.MATCHING,
+          BloodRequestsStatus.PARTIALLY_FULFILLED,
+        ],
+      },
+    },
+  ];
+
+  if (query.status) {
+    andConditions.push({
+      status: query.status as BloodRequestsStatus,
+    });
+  }
+
+  const where: Prisma.BloodRequestWhereInput = {
+    AND: andConditions,
+  };
+
+  const [requests, totalRequests] = await Promise.all([
+    prisma.bloodRequest.findMany({
+      where,
+      take: limit,
+      skip,
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
+      select: {
+        id: true,
+        bloodGroup: true,
+        unitsRequired: true,
+        unitsFulfilled: true,
+        urgency: true,
+        hospitalName: true,
+        hospitalAddress: true,
+        city: true,
+        requiredDate: true,
+        reason: true,
+        status: true,
+        createdAt: true,
+        requester: {
+          select: {
+            type: true,
+            organizationName: true,
+            city: true,
+          },
+        },
+      },
+    }),
+
+    prisma.bloodRequest.count({ where }),
+  ]);
+
+  return {
+    data: requests,
+    meta: {
+      page,
+      limit,
+      total: totalRequests,
+      totalPages: Math.ceil(totalRequests / limit),
+    },
+  };
+};
+
 export const RequestsService = {
   createRequests,
   payExistingRequests,
   cancelRequests,
   createRequestsCallback,
   getMyRequests,
+  getAllRequests,
 };

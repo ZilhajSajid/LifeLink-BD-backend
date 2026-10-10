@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { BloodGroupType, Urgency } from "../../../generated/prisma/enums";
+import {
+  BloodGroupType,
+  BloodRequestsStatus,
+  Urgency,
+} from "../../../generated/prisma/enums";
 
 export const createRequestsSchema = z.object({
   bloodGroup: z.enum(BloodGroupType),
@@ -43,3 +47,11 @@ export const createRequestsSchema = z.object({
     .max(1000, "Reason cannot exceed 1000 characters")
     .optional(),
 });
+export const getAllRequestsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
+  sortBy: z.enum(["createdAt", "requiredDate", "urgency"]).default("createdAt"),
+  sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  status: z.enum(BloodRequestsStatus).optional(),
+});
+export type GetAllRequestsQuery = z.infer<typeof getAllRequestsQuerySchema>;

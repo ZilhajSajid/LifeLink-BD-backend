@@ -29,6 +29,11 @@ router.get(
   auth(Role.REQUESTER),
   RequestsController.getMyRequests,
 );
+router.get(
+  "/all-requests",
+  auth(Role.DONOR),
+  RequestsController.getAllRequests,
+);
 
 // create requests callback url
 router.get(
