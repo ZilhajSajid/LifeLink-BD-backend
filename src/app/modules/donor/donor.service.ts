@@ -24,6 +24,7 @@ import { transporter } from "../../lib/nodemailer";
 import { RequestUser } from "../../middlewares/checkAuth";
 import { IQuery } from "../../interfaces";
 import { DonorWhereInput } from "../../../generated/prisma/models";
+import { generateRandomPassword } from "../../utils/randomPassword";
 
 const applyAsDonor = async (
   payload: IApplyAsDonor,
@@ -93,16 +94,15 @@ const applyAsDonor = async (
     }),
   );
 
-  const randomDonorPassword = Math.random().toString(36).slice(-8);
-  const hashedPassword = await bcrypt.hash(
-    randomDonorPassword,
-    Number(config.bcrypt_salt_rounds),
-  );
+  // const randomDonorPassword = Math.random().toString(36).slice(-8);
+  // const hashedPassword = await bcrypt.hash(
+  //   randomDonorPassword,
+  //   Number(config.bcrypt_salt_rounds),
+  // );
 
   const donorApplication = await prisma.user.create({
     data: {
       ...payload.user,
-      password: hashedPassword,
       role: Role.DONOR,
       needPasswordChange: true,
       donor: {
@@ -244,6 +244,18 @@ const approveDonor = async (
       "Rejection reason is required while rejecting a donor",
     );
   }
+  const isApproved = verificationStatus === DonorVerificationStatus.APPROVED;
+
+  const randomDonorPassword = isApproved ? generateRandomPassword() : undefined;
+
+  if (config.node_env === "development" && randomDonorPassword) {
+    console.log(`[dev] random password plain text : ${randomDonorPassword}`);
+  }
+
+  const hashedPassword = randomDonorPassword
+    ? await bcrypt.hash(randomDonorPassword, Number(config.bcrypt_salt_rounds))
+    : undefined;
+
   const updatedDonor = await prisma.donor.update({
     where: { id: donorId },
     data: {
@@ -254,10 +266,13 @@ const approveDonor = async (
           : null,
       reviewedBy: reviewer.userId,
       reviewedAt: new Date(),
+      ...(hashedPassword
+        ? { user: { update: { password: hashedPassword } } }
+        : {}),
     },
     include: { user: true },
   });
-  const isApproved = verificationStatus === DonorVerificationStatus.APPROVED;
+
   const templatePath = path.join(
     process.cwd(),
     `src/app/templates/${isApproved ? "donor-approve.ejs" : "donor-reject.ejs"}`,
